@@ -81,11 +81,10 @@ server.post('/participants', async (req, res) => {
       if (!limit) {
         res.send(messages);
       } else {
-        const limitSchema = joi.object({
-          limit: joi.number().integer().positive()
-        })
+        const limitSchema = joi.number().integer()
         const validation = limitSchema.validate(limit, { abortEarly: false })
         if (validation.error) {
+          console.log(validation.error.details)
           return res.sendStatus(422)
         } else {
           res.send(messages.slice(-limit));
@@ -129,6 +128,32 @@ server.post('/participants', async (req, res) => {
 
     res.sendStatus(201)
   })
+
+  server.post("/status", async (req, res) => {
+    const { user } = req.headers;
+
+    if (!user) {
+      return res.sendStatus(404);
+    }
+
+    const existingUser = await db.collection("participants").findOne({ name: user })
+
+    if (!existingUser) {
+      return res.sendStatus(404)
+    } 
+
+    existingUser.lastStatus = Date.now()
+    console.log(existingUser)
+    res.sendStatus(200)
+  })
+
+  setInterval(async () => {
+    const users = await db.collection("participants").find().toArray()
+    const removedUsers = await users.forEach(user => {
+      if (Date.now() - user.lastStatus > 10000) {
+        const removeUsers = db.collection("participants").deleteOne({name: user.name})
+      }})
+  }, 15000)
 
 server.listen(5000, () => {
   console.log("Rodando em http://localhost:5000");
