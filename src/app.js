@@ -49,21 +49,21 @@ server.post('/participants', async (req, res) => {
        return res.status(409).send("Nome de usuário já utilizado.");
       }
         
-    const newUser = {name: name, lastStatus: Date.now()};
-    db.collection("participants").insertOne(newUser)
-    .catch((err) => res.status(500).send(err.message))
-
-    const newMessage = { 
-		from: name,
-		to: 'Todos',
-		text: 'entra na sala...',
-		type: 'status',
-		time: dayjs().format("HH:mm:ss")
-    };
-    db.collection("messages").insertOne(newMessage)
-    .catch((err) => res.status(500).send(err.message))
-
-    res.sendStatus(201)
+   try { 
+      const newUser = {name: name, lastStatus: Date.now()};
+      const newMessage = { 
+      from: name,
+      to: 'Todos',
+      text: 'entra na sala...',
+      type: 'status',
+      time: dayjs().format("HH:mm:ss")
+      };
+      await db.collection("participants").insertOne(newUser)
+      await db.collection("messages").insertOne(newMessage)
+      res.sendStatus(201)
+    } catch {
+      res.sendStatus(500);
+    }
   })
 
   //GET messages from the database
@@ -81,7 +81,15 @@ server.post('/participants', async (req, res) => {
       if (!limit) {
         res.send(messages);
       } else {
-        res.send(messages.slice(-limit));
+        const limitSchema = joi.object({
+          limit: joi.number().integer().positive()
+        })
+        const validation = limitSchema.validate(limit, { abortEarly: false })
+        if (validation.error) {
+          return res.sendStatus(422)
+        } else {
+          res.send(messages.slice(-limit));
+        }
       }
   })
 
@@ -103,7 +111,7 @@ server.post('/participants', async (req, res) => {
       type: joi.string().required().valid("message", "private_message"),
     });
 
-    const validation = messageSchema.validate(req.body)
+    const validation = messageSchema.validate(req.body, { abortEarly: false })
 
     if (validation.error) {
       console.log(validation.error.details);
