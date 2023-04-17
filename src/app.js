@@ -142,16 +142,24 @@ server.post('/participants', async (req, res) => {
       return res.sendStatus(404)
     } 
 
-    existingUser.lastStatus = Date.now()
-    console.log(existingUser)
+    db.collection("participants").updateOne(
+      { name: existingUser.name },
+      { $set: { "lastStatus": Date.now() } })
     res.sendStatus(200)
   })
 
   setInterval(async () => {
     const users = await db.collection("participants").find().toArray()
-    const removedUsers = await users.forEach(user => {
+    await users.forEach(user => {
       if (Date.now() - user.lastStatus > 10000) {
-        const removeUsers = db.collection("participants").deleteOne({name: user.name})
+        db.collection("participants").deleteOne({name: user.name})
+        db.collection("messages").insertOne({
+          from: user.name,
+          to: "Todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format("HH:mm:ss"),
+        })
       }})
   }, 15000)
 
